@@ -89,11 +89,11 @@ ERROR_LOG_FILE = 'error_log.txt'
 #########################
 # Pyfilesystem settings #
 #########################
-HOST = 'nird.sigma2.no'
-USER = 'bencretois'
-PASSWORD = 'TigreSoleil0123'
-INPUT_PATH = '/nird/projects/NS8028K/tundra_forest_module/Acoustic_data/Soundstations2021/'
-OUTPUT_PATH = '/output'
+HOST = XXX
+USER = XXX
+PASSWORD = XXX
+INPUT_PATH = XXX
+OUTPUT_PATH = XXX
 
 ######################
 # Get and set config #

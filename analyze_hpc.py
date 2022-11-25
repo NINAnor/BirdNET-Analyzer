@@ -13,8 +13,10 @@ from fs.sshfs import SSHFS
 import numpy as np
 
 import config as cfg
-import audio
-import model
+import src.audio
+import src.model
+
+from utils.audio_processing import openCachedFile, openAudioFile
 
 def clearErrorLog():
 
@@ -26,31 +28,44 @@ def writeErrorLog(msg):
     with open(cfg.ERROR_LOG_FILE, 'a') as elog:
         elog.write(msg + '\n')
 
-def doConnection():
+def doConnection(connection_string):
 
-    myfs = SSHFS(
-        host=cfg.HOST, user=cfg.USER, passwd=cfg.PASSWORD, pkey=None, timeout=20, port=22,
-        keepalive=10, compress=False, config_path='~/.ssh/config')
-    print("Connection to the input folder has been successfully made")
+    if connection_string is False:
+        myfs = False
+    else:
+        myfs = fs.open_fs(connection_string)
     return myfs
 
 def walk_audio(filesystem):
     # Get all files in directory with os.walk
-    walker = filesystem.walk(cfg.INPUT_PATH, filter=['*.wav', '*.flac', '*.mp3', '*.ogg', '*.m4a', '*.WAV', '*.MP3'])
-    for path, dirs, flist in walker:
-        for f in flist:
-            yield fs.path.combine(path, f.name)
+    if filesystem:
+        walker = filesystem.walk(input_path, filter=['*.wav', '*.flac', '*.mp3', '*.ogg', '*.m4a', '*.WAV', '*.MP3'])
+        for path, dirs, flist in walker:
+            for f in flist:
+                yield fs.path.combine(path, f.name)
+    else:
+        for path, dirs, flist in os.walk(input_path):
+            for f in flist:
+                yield os.path.join(path, f)
 
-def parseInputFiles(filesystem, workers, worker_idx):
+def parseInputFiles(filesystem, input_path, workers, worker_idx, array_job=False):
+
+    files = []
+    include = ('.wav', '.flac', '.mp3', '.ogg', '.m4a', '.WAV', '.MP3')
 
     print("Worker {}".format(workers))
     print("Worker_idx {}".format(worker_idx))
 
-    files = []
-    for index, audiofile in enumerate(walk_audio(filesystem)):
-        # print(audiofile)
-        if index%workers == worker_idx:
+    if array_job:
+        for index, audiofile in enumerate(walk_audio(filesystem, input_path)):
+            if index%workers == worker_idx:
+                files.append(audiofile)
+    else:
+        for index, audiofile in enumerate(walk_audio(filesystem, input_path)):
             files.append(audiofile)
+
+    files = [file for file in files if file.endswith(include)]
+            
     print('Found {} files to analyze'.format(len(files)))
 
     return files
@@ -216,8 +231,11 @@ def getSortedTimestamps(results):
 
 def getRawAudioFromFile(filesystem, fpath):
 
-    # Open file
-    sig, rate = audio.openCachedFile(filesystem, fpath, cfg.SAMPLE_RATE)
+    # Open audio file
+    if not filesystem:
+        sig, rate = openAudioFile(afile, sample_rate)
+    else:
+        sig, rate = openCachedFile(filesystem, afile, sample_rate)
 
     # Split into raw audio chunks
     chunks = audio.splitSignal(sig, rate, cfg.SIG_LENGTH, cfg.SIG_OVERLAP, cfg.SIG_MINLEN)
@@ -377,6 +395,26 @@ if __name__ == '__main__':
     parser.add_argument('--locale', default='en', help='Locale for translated species common names. Values in [\'af\', \'de\', \'it\', ...] Defaults to \'en\'.')
     parser.add_argument('--sf_thresh', type=float, default=0.03, help='Minimum species occurrence frequency threshold for location filter. Values in [0.01, 0.99]. Defaults to 0.03.')
 
+    parser.add_argument("--num_worker",
+                        help='Path to the config file',
+                        default=1,
+                        required=False,
+                        type=int,
+                        )
+
+    parser.add_argument("--worker_index",
+                        help='Path to the config file',
+                        default=1,
+                        required=False,
+                        type=int,
+                        )
+
+    parser.add_argument("--array_job",
+                        help='Are you submitted an array job?',
+                        default=False,
+                        required=False,
+                        type=str,
+                        )
     args = parser.parse_args()
 
     # Set paths relative to script path (requested in #3)
@@ -419,13 +457,13 @@ if __name__ == '__main__':
         print('Species list contains {} species'.format(len(cfg.SPECIES_LIST)))
 
     # Do the connection
-    myfs = doConnection()
-    if not myfs:  # Nothing available
-        exit(0)
+    myfs = doConnection(cfg.CONNECTION_STRING)
+    #if not myfs:  # Nothing available
+    #    exit(0)
 
     # Parse input files
     #if os.path.isdir(cfg.INPUT_PATH):
-    cfg.FILE_LIST = parseInputFiles(myfs, args.workers, args.worker_index)  
+    cfg.FILE_LIST = parseInputFiles(myfs, args.num_workers, args.worker_index, args.array_job)  
     #else:
     #    cfg.FILE_LIST = [cfg.INPUT_PATH]
 

@@ -1,0 +1,27 @@
+#############
+# Data path #
+#############
+
+# Connection string if connecting to a remote server
+# String in the form "ssh://user:password@host", can also be set to False
+# if data is stored locally
+CONNECTION_STRING: False # or set to False
+
+# Folder containing the files that need predictions
+INPUT_PATH: "/output/YELLOWSTONE_DATA/" # /Data/audioCLIP/tiny_preds 
+
+# Folder that will contain the output of the predictions
+OUTPUT_PATH:  "/output/BIRDNET_RESULTS/"  #'/Data/audioCLIP/SNOWSCOOTER_RESULTS'
+
+# Folder that will contain the extracted segments
+OUT_PATH_SEGMENTS: '/output/SEGMENTS_Birds'
+
+# Number of segments to isolate
+NUM_SEGMENTS: 100
+
+# Threshold
+THRESHOLD: 0.6
+
+# Sample rate
+SAMPLE_RATE: 48000 
+

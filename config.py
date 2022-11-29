@@ -55,7 +55,7 @@ SPECIES_LIST_FILE = 'example/species_list.txt'
 
 # Number of threads to use for inference.
 # Can be as high as number of CPUs in your system
-CPU_THREADS = 1
+CPU_THREADS = 4
 TFLITE_THREADS = 1
 
 # False will output logits, True will convert to sigmoid activations
@@ -89,11 +89,16 @@ ERROR_LOG_FILE = 'error_log.txt'
 #########################
 # Pyfilesystem settings #
 #########################
-HOST = XXX
-USER = XXX
-PASSWORD = XXX
-INPUT_PATH = XXX
-OUTPUT_PATH = XXX
+
+# Connection string
+CONNECTION_STRING = False
+
+# Folder containing the files that need predictions
+INPUT_PATH = '/cluster/projects/nn8055k/YELLOWSTONE_DATA/' # /Data/audioCLIP/tiny_preds 
+
+# Folder that will contain the output of the predictions
+OUTPUT_PATH = '/cluster/projects/nn8055k/BIRDNET_RESULTS/'  #'/Data/audioCLIP/SNOWSCOOTER_RESULTS'
+
 
 ######################
 # Get and set config #
@@ -127,9 +132,7 @@ def getConfig():
         'TRANSLATED_LABELS': TRANSLATED_LABELS,
         'SPECIES_LIST': SPECIES_LIST,
         'ERROR_LOG_FILE': ERROR_LOG_FILE,
-        'HOST': HOST,
-        'USER': USER,
-        'PASSWORD': PASSWORD,
+        'CONNECTION_STRING': CONNECTION_STRING,
         'INPUT_PATH': INPUT_PATH,
         'OUTPUT_PATH': OUTPUT_PATH
     }
@@ -162,9 +165,7 @@ def setConfig(c):
     global TRANSLATED_LABELS
     global SPECIES_LIST
     global ERROR_LOG_FILE
-    global HOST
-    global USER
-    global PASSWORD
+    global CONNECTION_STRING
     global INPUT_PATH
     global OUTPUT_PATH
 
@@ -194,8 +195,6 @@ def setConfig(c):
     TRANSLATED_LABELS = c['TRANSLATED_LABELS']
     SPECIES_LIST = c['SPECIES_LIST']
     ERROR_LOG_FILE = c['ERROR_LOG_FILE']
-    HOST = c['HOST']
-    USER = c['USER']
-    PASSWORD = c['PASSWORD']
+    CONNECTION_STRING = c['CONNECTION_STRING']
     INPUT_PATH = c['INPUT_PATH']
     OUTPUT_PATH = c['OUTPUT_PATH']

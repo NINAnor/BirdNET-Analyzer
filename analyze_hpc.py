@@ -13,10 +13,10 @@ from fs.sshfs import SSHFS
 import numpy as np
 
 import config as cfg
-import src.audio
-import src.model
 
-from utils.audio_processing import openCachedFile, openAudioFile
+import src.model 
+from src.model import explore, flat_sigmoid
+from utils.audio_processing import openCachedFile, openAudioFile, splitSignal
 
 def clearErrorLog():
 
@@ -36,7 +36,7 @@ def doConnection(connection_string):
         myfs = fs.open_fs(connection_string)
     return myfs
 
-def walk_audio(filesystem):
+def walk_audio(filesystem, input_path):
     # Get all files in directory with os.walk
     if filesystem:
         walker = filesystem.walk(input_path, filter=['*.wav', '*.flac', '*.mp3', '*.ogg', '*.m4a', '*.WAV', '*.MP3'])
@@ -99,7 +99,7 @@ def loadSpeciesList(fpath):
 
 def predictSpeciesList():
 
-    l_filter = model.explore(cfg.LATITUDE, cfg.LONGITUDE, cfg.WEEK)
+    l_filter = explore(cfg.LATITUDE, cfg.LONGITUDE, cfg.WEEK)
     cfg.SPECIES_LIST_FILE = None
     cfg.SPECIES_LIST = []
     for s in l_filter:
@@ -229,16 +229,16 @@ def getSortedTimestamps(results):
     return sorted(results, key=lambda t: float(t.split('-')[0]))
 
 
-def getRawAudioFromFile(filesystem, fpath):
+def getRawAudioFromFile(filesystem, fpath, sample_rate=48000):
 
     # Open audio file
     if not filesystem:
-        sig, rate = openAudioFile(afile, sample_rate)
+        sig, rate = openAudioFile(fpath, sample_rate)
     else:
-        sig, rate = openCachedFile(filesystem, afile, sample_rate)
+        sig, rate = openCachedFile(filesystem, fpath, sample_rate)
 
     # Split into raw audio chunks
-    chunks = audio.splitSignal(sig, rate, cfg.SIG_LENGTH, cfg.SIG_OVERLAP, cfg.SIG_MINLEN)
+    chunks = splitSignal(sig, rate, cfg.SIG_LENGTH, cfg.SIG_OVERLAP, cfg.SIG_MINLEN)
 
     return chunks
 
@@ -246,19 +246,19 @@ def predict(samples):
 
     # Prepare sample and pass through model
     data = np.array(samples, dtype='float32')
-    prediction = model.predict(data)
+    prediction = src.model.predict(data)
 
     # Logits or sigmoid activations?
     if cfg.APPLY_SIGMOID:
-        prediction = model.flat_sigmoid(np.array(prediction), sensitivity=-cfg.SIGMOID_SENSITIVITY)
+        prediction = flat_sigmoid(np.array(prediction), sensitivity=-cfg.SIGMOID_SENSITIVITY)
 
     return prediction
 
-def analyzeFile(filesystem, item):
+def analyzeFile(item, filesystem=False):
 
     # Get file path and restore cfg
-    fpath = item[0]
-    cfg.setConfig(item[1])
+    fpath = item
+    #cfg.setConfig(item[1])
 
     # Start time
     start_time = datetime.datetime.now()
@@ -394,21 +394,6 @@ if __name__ == '__main__':
     parser.add_argument('--batchsize', type=int, default=1, help='Number of samples to process at the same time. Defaults to 1.')
     parser.add_argument('--locale', default='en', help='Locale for translated species common names. Values in [\'af\', \'de\', \'it\', ...] Defaults to \'en\'.')
     parser.add_argument('--sf_thresh', type=float, default=0.03, help='Minimum species occurrence frequency threshold for location filter. Values in [0.01, 0.99]. Defaults to 0.03.')
-
-    parser.add_argument("--num_worker",
-                        help='Path to the config file',
-                        default=1,
-                        required=False,
-                        type=int,
-                        )
-
-    parser.add_argument("--worker_index",
-                        help='Path to the config file',
-                        default=1,
-                        required=False,
-                        type=int,
-                        )
-
     parser.add_argument("--array_job",
                         help='Are you submitted an array job?',
                         default=False,
@@ -461,12 +446,6 @@ if __name__ == '__main__':
     #if not myfs:  # Nothing available
     #    exit(0)
 
-    # Parse input files
-    #if os.path.isdir(cfg.INPUT_PATH):
-    cfg.FILE_LIST = parseInputFiles(myfs, args.num_workers, args.worker_index, args.array_job)  
-    #else:
-    #    cfg.FILE_LIST = [cfg.INPUT_PATH]
-
     # Set confidence threshold
     cfg.MIN_CONFIDENCE = max(0.01, min(0.99, float(args.min_conf)))
 
@@ -481,14 +460,6 @@ if __name__ == '__main__':
     if not cfg.RESULT_TYPE in ['table', 'audacity', 'r', 'csv']:
         cfg.RESULT_TYPE = 'table'
 
-    # Set number of threads
-    #if os.path.isdir(cfg.INPUT_PATH):
-    #    cfg.CPU_THREADS = max(1, int(args.threads))
-    #    cfg.TFLITE_THREADS = 1
-    #else:
-    #    cfg.CPU_THREADS = 1
-    #    cfg.TFLITE_THREADS = max(1, int(args.threads))
-
     # Set batch size
     cfg.BATCH_SIZE = max(1, int(args.batchsize))
 
@@ -496,20 +467,20 @@ if __name__ == '__main__':
     # We have to do this for Windows which does not
     # support fork() and thus each process has to
     # have its own config. USE LINUX!
-    flist = []
-    for f in cfg.FILE_LIST:
-        flist.append((f, cfg.getConfig()))
+
+    # Parse input files
+    flist = parseInputFiles(myfs, cfg.INPUT_PATH, args.workers, args.worker_index, args.array_job)  
 
     # Analyze files   
     if cfg.CPU_THREADS < 2:
         for entry in flist:
             try:
-                analyzeFile(myfs, entry)
+                analyzeFile(entry, myfs)
             except:
                 print("File {} failed to be analyzed".format(entry))
     else:
         with Pool(cfg.CPU_THREADS) as p:
-            p.map(analyzeFile, myfs, flist)
+            p.map(analyzeFile, flist)
 
     # A few examples to test
     # python3 analyze.py --i example/ --o example/ --slist example/ --min_conf 0.5 --threads 4

@@ -1,8 +1,7 @@
 import numpy as np
+import librosa
 
-import config as cfg
-
-RANDOM = np.random.RandomState(cfg.RANDOM_SEED)
+RANDOM = np.random.RandomState(42)
 
 def openCachedFile(filesystem, path, sample_rate=48000, offset=0.0, duration=None):
     
@@ -17,10 +16,7 @@ def openCachedFile(filesystem, path, sample_rate=48000, offset=0.0, duration=Non
 
     return sig, rate
 
-def openAudioFile(path, sample_rate=48000, offset=0.0, duration=None):    
-    
-    # Open file with librosa (uses ffmpeg or libav)
-    import librosa
+def openAudioFile(path, sample_rate=44100, offset=0.0, duration=None):    
 
     try:
         sig, rate = librosa.load(path, sr=sample_rate, offset=offset, duration=duration, mono=True, res_type='kaiser_fast')
@@ -28,25 +24,6 @@ def openAudioFile(path, sample_rate=48000, offset=0.0, duration=None):
         sig, rate = [], sample_rate
 
     return sig, rate
-
-def saveSignal(sig, fname):
-
-    import soundfile as sf
-    sf.write(fname, sig, 48000, 'PCM_16')
-
-def noise(sig, shape, amount=None):
-
-    # Random noise intensity
-    if amount == None:
-        amount = RANDOM.uniform(0.1, 0.5)
-
-    # Create Gaussian noise
-    try:
-        noise = RANDOM.normal(min(sig) * amount, max(sig) * amount, shape)
-    except:
-        noise = np.zeros(shape)
-
-    return noise.astype('float32')
 
 def splitSignal(sig, rate, seconds, overlap, minlen):
 
@@ -66,3 +43,22 @@ def splitSignal(sig, rate, seconds, overlap, minlen):
         sig_splits.append(split)
 
     return sig_splits
+
+def noise(sig, shape, amount=None):
+
+    # Random noise intensity
+    if amount == None:
+        amount = RANDOM.uniform(0.1, 0.5)
+
+    # Create Gaussian noise
+    try:
+        noise = RANDOM.normal(min(sig) * amount, max(sig) * amount, shape)
+    except:
+        noise = np.zeros(shape)
+
+    return noise.astype('float32')
+
+def saveSignal(sig, fname):
+
+    import soundfile as sf
+    sf.write(fname, sig, 48000, 'PCM_16')

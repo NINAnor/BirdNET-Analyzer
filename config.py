@@ -91,14 +91,26 @@ ERROR_LOG_FILE = 'error_log.txt'
 #########################
 
 # Connection string
-CONNECTION_STRING = False
+CONNECTION_STRING = False # Or ssh://user:password@host
 
 # Folder containing the files that need predictions
-INPUT_PATH = '/cluster/projects/nn8055k/YELLOWSTONE_DATA/' # /Data/audioCLIP/tiny_preds 
+INPUT_PATH = '/input'
 
 # Folder that will contain the output of the predictions
-OUTPUT_PATH = '/cluster/projects/nn8055k/BIRDNET_RESULTS/'  #'/Data/audioCLIP/SNOWSCOOTER_RESULTS'
+OUTPUT_PATH = '/output' 
 
+####################################
+# Settings for extracting segments #
+####################################
+
+# Folder that will contain the extracted segments
+OUT_PATH_SEGMENTS = '/output/'
+
+# Number of segments to isolate
+NUM_SEGMENTS = 100
+
+# Threshold
+THRESHOLD = 0.6
 
 ######################
 # Get and set config #
@@ -134,7 +146,10 @@ def getConfig():
         'ERROR_LOG_FILE': ERROR_LOG_FILE,
         'CONNECTION_STRING': CONNECTION_STRING,
         'INPUT_PATH': INPUT_PATH,
-        'OUTPUT_PATH': OUTPUT_PATH
+        'OUTPUT_PATH': OUTPUT_PATH,
+        'OUT_PATH_SEGMENTS': OUT_PATH_SEGMENTS,
+        'NUM_SEGMENTS': NUM_SEGMENTS,
+        'THRESHOLD': THRESHOLD
     }
 
 def setConfig(c):
@@ -168,6 +183,9 @@ def setConfig(c):
     global CONNECTION_STRING
     global INPUT_PATH
     global OUTPUT_PATH
+    global OUT_PATH_SEGMENTS
+    global NUM_SEGMENTS
+    global THRESHOLD
 
     RANDOM_SEED = c['RANDOM_SEED']
     MODEL_PATH = c['MODEL_PATH']
@@ -198,3 +216,6 @@ def setConfig(c):
     CONNECTION_STRING = c['CONNECTION_STRING']
     INPUT_PATH = c['INPUT_PATH']
     OUTPUT_PATH = c['OUTPUT_PATH']
+    OUT_PATH_SEGMENTS = c['OUT_PATH_SEGMENTS']
+    NUM_SEGMENTS = c['NUM_SEGMENTS']
+    THRESHOLD = c['THRESHOLD']

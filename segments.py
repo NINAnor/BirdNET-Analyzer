@@ -8,6 +8,8 @@ import fs
 
 from yaml import FullLoader
 
+import config as cfg
+
 from utils.audio_processing import openCachedFile, openAudioFile, saveSignal
 from utils.parsing_utils import remove_extension
 
@@ -214,27 +216,23 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--config",
-                        help='Path to the config file',
-                        default="config_segments.yaml",
-                        required=False,
-                        type=str,
-                        )
-
-    cli_args = parser.parse_args()
-
-    # Open the config file
-    with open(cli_args.config) as f:
-        cfg = yaml.load(f, Loader=FullLoader)
+    # Set paths relative to script path (requested in #3)
+    cfg.CONNECTION_STRING = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), cfg.CONNECTION_STRING)
+    cfg.INPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), cfg.INPUT_PATH)
+    cfg.OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), cfg.OUTPUT_PATH)
+    cfg.NUM_SEGMENTS = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), cfg.NUM_SEGMENTS)
+    cfg.THRESHOLD = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), cfg.THRESHOLD)
+    cfg.SAMPLE_RATE= os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), cfg.SAMPLE_RATE)
+    cfg.OUT_PATH_SEGMENTS= os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), cfg.OUT_PATH_SEGMENTS)
 
     # Do the connection to server
-    myfs = doConnection(cfg["CONNECTION_STRING"])
+    myfs = doConnection(cfg.CONNECTION_STRING)
 
     # Parse audio and result folders
-    parsed_folders = parseFolders(myfs, cfg["INPUT_PATH"], cfg["OUTPUT_PATH"])
+    parsed_folders = parseFolders(myfs, cfg.INPUT_PATH, cfg.OUTPUT_PATH)
 
     # Parse file list and make list of segments
-    parsed_files = parseFiles(parsed_folders, cfg["NUM_SEGMENTS"], cfg["THRESHOLD"])
+    parsed_files = parseFiles(parsed_folders, cfg.NUM_SEGMENTS, cfg.THRESHOLD)
 
     # Add config items to each file list entry.
     flist = []
@@ -243,4 +241,4 @@ if __name__ == '__main__':
     
     # Extract segments   
     for entry in flist:
-        extractSegments(entry, cfg["SAMPLE_RATE"], cfg["OUT_PATH_SEGMENTS"], myfs)
+        extractSegments(entry, cfg.SAMPLE_RATE, cfg.OUT_PATH_SEGMENTS, myfs)

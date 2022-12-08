@@ -132,3 +132,5 @@ dmypy.json
 *sif
 my_analysis/
 results/
+.devcontainer/
+checkpoints/

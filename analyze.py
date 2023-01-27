@@ -237,7 +237,6 @@ def getRawAudioFromFile(filesystem, fpath, sample_rate=48000):
 
     # Open audio file
     if filesystem:
-        print("1")
         sig, rate = openCachedFile(filesystem, fpath, sample_rate)
     else:
         sig, rate = openAudioFile(fpath, sample_rate)
@@ -263,117 +262,132 @@ def analyzeFile(item, filesystem):
 
     # Get file path and restore cfg
     fpath = item
-    #cfg.setConfig(item[1])
+    rpath = fpath.replace(cfg.INPUT_PATH, '')
+    rpath = rpath[1:] if rpath[0] in ['/', '\\'] else rpath
 
-    # Start time
-    start_time = datetime.datetime.now()
+    # Check if file already exists and if it does skip the analysis
+    if cfg.RESULT_TYPE == 'table':
+        rtype = '.BirdNET.selection.table.txt' 
+    elif cfg.RESULT_TYPE == 'audacity':
+        rtype = '.BirdNET.results.txt'
+    else:
+        rtype = '.BirdNET.results.csv'
 
-    # Status
-    print('Analyzing {}'.format(fpath), flush=True)
+    outname = os.path.join(cfg.OUTPUT_PATH, rpath.rsplit('.', 1)[0] + rtype)
 
-    # Open audio file and split into 3-second chunks
-    chunks = getRawAudioFromFile(filesystem, fpath)
+    if os.path.exists(outname):
+        print("File {} already exists".format(outname))
+    else:
 
-    # If no chunks, show error and skip
-    if len(chunks) == 0:
-        msg = 'Error: Cannot open audio file {}'.format(fpath)
-        print(msg, flush=True)
-        writeErrorLog(msg)
-        return False
+        # Start time
+        start_time = datetime.datetime.now()
 
-    # Process each chunk
-    try:
-        start, end = 0, cfg.SIG_LENGTH
-        results = {}
-        samples = []
-        timestamps = []
-        for c in range(len(chunks)):
+        # Status
+        print('Analyzing {}'.format(fpath), flush=True)
 
-            # Add to batch
-            samples.append(chunks[c])
-            timestamps.append([start, end])
+        # Open audio file and split into 3-second chunks
+        chunks = getRawAudioFromFile(filesystem, fpath)
 
-            # Advance start and end
-            start += cfg.SIG_LENGTH - cfg.SIG_OVERLAP
-            end = start + cfg.SIG_LENGTH
+        # If no chunks, show error and skip
+        if len(chunks) == 0:
+            msg = 'Error: Cannot open audio file {}'.format(fpath)
+            print(msg, flush=True)
+            writeErrorLog(msg)
+            return False
 
-            # Check if batch is full or last chunk        
-            if len(samples) < cfg.BATCH_SIZE and c < len(chunks) - 1:
-                continue
-
-            # Predict
-            p = predict(samples)
-
-            # Add to results
-            for i in range(len(samples)):
-
-                # Get timestamp
-                s_start, s_end = timestamps[i]
-
-                # Get prediction
-                pred = p[i]
-
-                # Assign scores to labels
-                p_labels = dict(zip(cfg.LABELS, pred))
-
-                # Sort by score
-                p_sorted =  sorted(p_labels.items(), key=operator.itemgetter(1), reverse=True)
-
-                # Store top 5 results and advance indicies
-                results[str(s_start) + '-' + str(s_end)] = p_sorted
-
-            # Clear batch
+        # Process each chunk
+        try:
+            start, end = 0, cfg.SIG_LENGTH
+            results = {}
             samples = []
-            timestamps = []  
-    except:
-        # Print traceback
-        print(traceback.format_exc(), flush=True)
+            timestamps = []
+            for c in range(len(chunks)):
 
-        # Write error log
-        msg = 'Error: Cannot analyze audio file {}.\n{}'.format(fpath, traceback.format_exc())
-        print(msg, flush=True)
-        writeErrorLog(msg)
-        return False     
+                # Add to batch
+                samples.append(chunks[c])
+                timestamps.append([start, end])
 
-    # Save as selection table
-    try:
+                # Advance start and end
+                start += cfg.SIG_LENGTH - cfg.SIG_OVERLAP
+                end = start + cfg.SIG_LENGTH
 
-        # We have to check if output path is a file or directory
-        if not cfg.OUTPUT_PATH.rsplit('.', 1)[-1].lower() in ['txt', 'csv']:
+                # Check if batch is full or last chunk        
+                if len(samples) < cfg.BATCH_SIZE and c < len(chunks) - 1:
+                    continue
 
-            rpath = fpath.replace(cfg.INPUT_PATH, '')
-            rpath = rpath[1:] if rpath[0] in ['/', '\\'] else rpath
+                # Predict
+                p = predict(samples)
 
-            # Make target directory if it doesn't exist
-            rdir = os.path.join(cfg.OUTPUT_PATH, os.path.dirname(rpath))
-            if not os.path.exists(rdir):
-                os.makedirs(rdir, exist_ok=True)
+                # Add to results
+                for i in range(len(samples)):
 
-            if cfg.RESULT_TYPE == 'table':
-                rtype = '.BirdNET.selection.table.txt' 
-            elif cfg.RESULT_TYPE == 'audacity':
-                rtype = '.BirdNET.results.txt'
+                    # Get timestamp
+                    s_start, s_end = timestamps[i]
+
+                    # Get prediction
+                    pred = p[i]
+
+                    # Assign scores to labels
+                    p_labels = dict(zip(cfg.LABELS, pred))
+
+                    # Sort by score
+                    p_sorted =  sorted(p_labels.items(), key=operator.itemgetter(1), reverse=True)
+
+                    # Store top 5 results and advance indicies
+                    results[str(s_start) + '-' + str(s_end)] = p_sorted
+
+                # Clear batch
+                samples = []
+                timestamps = []  
+        except:
+            # Print traceback
+            print(traceback.format_exc(), flush=True)
+
+            # Write error log
+            msg = 'Error: Cannot analyze audio file {}.\n{}'.format(fpath, traceback.format_exc())
+            print(msg, flush=True)
+            writeErrorLog(msg)
+            return False     
+
+        # Save as selection table
+        try:
+
+            # We have to check if output path is a file or directory
+            if not cfg.OUTPUT_PATH.rsplit('.', 1)[-1].lower() in ['txt', 'csv']:
+
+                rpath = fpath.replace(cfg.INPUT_PATH, '')
+                rpath = rpath[1:] if rpath[0] in ['/', '\\'] else rpath
+
+                # Make target directory if it doesn't exist
+                rdir = os.path.join(cfg.OUTPUT_PATH, os.path.dirname(rpath))
+                if not os.path.exists(rdir):
+                    os.makedirs(rdir, exist_ok=True)
+
+                if cfg.RESULT_TYPE == 'table':
+                    rtype = '.BirdNET.selection.table.txt' 
+                elif cfg.RESULT_TYPE == 'audacity':
+                    rtype = '.BirdNET.results.txt'
+                else:
+                    rtype = '.BirdNET.results.csv'
+                saveResultFile(results, os.path.join(cfg.OUTPUT_PATH, rpath.rsplit('.', 1)[0] + rtype), fpath)
+                print("File saved in {}".format(os.path.join(cfg.OUTPUT_PATH, rpath.rsplit('.', 1)[0] + rtype)))
             else:
-                rtype = '.BirdNET.results.csv'
-            saveResultFile(results, os.path.join(cfg.OUTPUT_PATH, rpath.rsplit('.', 1)[0] + rtype), fpath)
-            print("File saved in {}".format(os.path.join(cfg.OUTPUT_PATH, rpath.rsplit('.', 1)[0] + rtype)))
-        else:
-            saveResultFile(results, cfg.OUTPUT_PATH, fpath)        
-    except:
+                saveResultFile(results, cfg.OUTPUT_PATH, fpath)        
+        except:
 
-        # Print traceback
-        print(traceback.format_exc(), flush=True)
+            # Print traceback
+            print(traceback.format_exc(), flush=True)
 
-        # Write error log
-        msg = 'Error: Cannot save result for {}.\n{}'.format(fpath, traceback.format_exc())
-        print(msg, flush=True)
-        writeErrorLog(msg)
-        return False
+            # Write error log
+            msg = 'Error: Cannot save result for {}.\n{}'.format(fpath, traceback.format_exc())
+            print(msg, flush=True)
+            writeErrorLog(msg)
+            return False
 
-    delta_time = (datetime.datetime.now() - start_time).total_seconds()
-    print('Finished {} in {:.2f} seconds'.format(fpath, delta_time), flush=True)
+        delta_time = (datetime.datetime.now() - start_time).total_seconds()
+        print('Finished {} in {:.2f} seconds'.format(fpath, delta_time), flush=True)
 
-    return True
+        return True
 
 if __name__ == '__main__':
 
@@ -459,27 +473,18 @@ if __name__ == '__main__':
     # Parse input files
     flist = parseInputFiles(myfs, cfg.INPUT_PATH, args.workers, args.worker_index, args.array_job)  
 
-    # To make it faster, get arr, sr before the analyzeFile so it's possible to iterate in multiprocessing
-    list_chunks = []
-
-    for file in flist:
-        chunks = getRawAudioFromFile(myfs, fpath)
-        list_chunks.append(chunks)
-
-        # If no chunks, show error and skip
-        if len(chunks) == 0:
-            msg = 'Error: Cannot open audio file {}'.format(file)
-            print(msg, flush=True)
-            writeErrorLog(msg)
-            return False
-
     # Analyze files   
-    if cfg.CPU_THREADS < 2:
-        for entry in flist:
-            try:
-                analyzeFile(entry, list_chunks)
-            except:
-                print("File {} failed to be analyzed".format(entry))
-    else:
-        with Pool(cfg.CPU_THREADS) as p:
-            p.map(analyzeFile, flist, list_chunks)
+    #if cfg.CPU_THREADS < 2:
+    for entry in flist:
+        try:
+            analyzeFile(entry, myfs)
+        except:
+            print("File {} failed to be analyzed".format(entry))
+    #else:
+    #    with Pool(cfg.CPU_THREADS) as p:
+    #        p.map(analyzeFile, flist)
+
+    # A few examples to test
+    # python3 analyze.py --i example/ --o example/ --slist example/ --min_conf 0.5 --threads 4
+    # python3 analyze.py --i example/soundscape.wav --o example/soundscape.BirdNET.selection.table.txt --slist example/species_list.txt --thr$
+    # python3 analyze.py --i example/ --o example/ --lat 42.5 --lon -76.45 --week 4 --sensitivity 1.0 --rtype table --locale de
